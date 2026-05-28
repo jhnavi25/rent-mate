@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Rent Mate",
+    "slug": "rent-mate",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "rentmate",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#1a1a2e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rentmate.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.rentmate.app"
+    }
+  }
+}

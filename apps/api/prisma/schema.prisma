@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  renter
+  owner
+  admin
+}
+
+enum KycStatus {
+  none
+  pending
+  verified
+  rejected
+}
+
+enum ListingStatus {
+  draft
+  active
+  inactive
+}
+
+enum RentalStatus {
+  draft
+  payment_pending
+  active
+  in_use
+  return_pending
+  deposit_hold
+  dispute_open
+  completed
+  cancelled
+}
+
+enum PaymentType {
+  rental
+  deposit
+}
+
+enum PaymentStatus {
+  pending
+  captured
+  refunded
+  failed
+}
+
+enum DisputeStatus {
+  open
+  under_review
+  resolved
+}
+
+model User {
+  id           String    @id @default(uuid())
+  phone        String    @unique
+  name         String?
+  role         UserRole  @default(renter)
+  kycStatus    KycStatus @default(none) @map("kyc_status")
+  kycLevel     String?   @map("kyc_level")
+  verifiedAt   DateTime? @map("verified_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  kycProfile   KycProfile?
+  listings     Listing[]
+  rentals      Rental[]    @relation("RenterRentals")
+  otpCodes     OtpCode[]
+  auditLogs    AuditLog[]
+  disputesResolved Dispute[] @relation("ResolvedBy")
+  disputeEvidence  DisputeEvidence[]
+
+  @@map("users")
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  phone     String
+  code      String
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([phone, code])
+  @@map("otp_codes")
+}
+
+model KycProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  providerRef     String?  @map("provider_ref")
+  panNumber       String?  @map("pan_number")
+  aadhaarMasked   String?  @map("aadhaar_masked")
+  bankAccountLast4 String? @map("bank_account_last4")
+  metadata        Json?
+  submittedAt     DateTime? @map("submitted_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kyc_profiles")
+}
+
+model Listing {
+  id           String        @id @default(uuid())
+  ownerId      String        @map("owner_id")
+  title        String
+  description  String?
+  dailyPricePaise Int        @map("daily_price_paise")
+  depositPaise Int           @map("deposit_paise")
+  category     String?
+  city         String?
+  status       ListingStatus @default(draft)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  owner  User           @relation(fields: [ownerId], references: [id])
+  media  ListingMedia[]
+  rentals Rental[]
+
+  @@index([status, city])
+  @@map("listings")
+}
+
+model ListingMedia {
+  id        String   @id @default(uuid())
+  listingId String   @map("listing_id")
+  url       String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("listing_media")
+}
+
+model Rental {
+  id                 String       @id @default(uuid())
+  listingId          String       @map("listing_id")
+  renterId           String       @map("renter_id")
+  startDate          DateTime     @map("start_date") @db.Date
+  endDate            DateTime     @map("end_date") @db.Date
+  status             RentalStatus @default(draft)
+  rentalFeePaise     Int          @map("rental_fee_paise")
+  depositPaise       Int          @map("deposit_paise")
+  platformFeePaise   Int          @default(0) @map("platform_fee_paise")
+  depositHoldUntil   DateTime?    @map("deposit_hold_until")
+  handoffConfirmedAt DateTime?    @map("handoff_confirmed_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  listing      Listing       @relation(fields: [listingId], references: [id])
+  renter       User          @relation("RenterRentals", fields: [renterId], references: [id])
+  payments     Payment[]
+  rentalReturn RentalReturn?
+  dispute      Dispute?
+  auditLogs    AuditLog[]
+
+  @@index([status, depositHoldUntil])
+  @@map("rentals")
+}
+
+model RentalReturn {
+  id         String   @id @default(uuid())
+  rentalId   String   @unique @map("rental_id")
+  returnedAt DateTime @default(now()) @map("returned_at")
+  photos     String[]
+  notes      String?
+
+  rental Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  @@map("rental_returns")
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  rentalId          String        @map("rental_id")
+  type              PaymentType
+  amountPaise       Int           @map("amount_paise")
+  refundedPaise     Int           @default(0) @map("refunded_paise")
+  status            PaymentStatus @default(pending)
+  razorpayOrderId   String?       @unique @map("razorpay_order_id")
+  razorpayPaymentId String?       @unique @map("razorpay_payment_id")
+  idempotencyKey    String?       @unique @map("idempotency_key")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  rental Rental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model PaymentEvent {
+  id          String   @id @default(uuid())
+  eventId     String   @unique @map("event_id")
+  payloadHash String   @map("payload_hash")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("payment_events")
+}
+
+model LedgerEntry {
+  id          String   @id @default(uuid())
+  rentalId    String?  @map("rental_id")
+  paymentId   String?  @map("payment_id")
+  description String
+  debitPaise  Int      @default(0) @map("debit_paise")
+  creditPaise Int      @default(0) @map("credit_paise")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("ledger_entries")
+}
+
+model Dispute {
+  id                 String        @id @default(uuid())
+  rentalId           String        @unique @map("rental_id")
+  status             DisputeStatus @default(open)
+  claimedAmountPaise Int           @map("claimed_amount_paise")
+  resolution         String?
+  resolvedAmountPaise Int?         @map("resolved_amount_paise")
+  resolvedById       String?       @map("resolved_by_id")
+  resolvedAt         DateTime?     @map("resolved_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  rental    Rental            @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  resolvedBy User?            @relation("ResolvedBy", fields: [resolvedById], references: [id])
+  evidence  DisputeEvidence[]
+
+  @@map("disputes")
+}
+
+model DisputeEvidence {
+  id         String   @id @default(uuid())
+  disputeId  String   @map("dispute_id")
+  uploadedBy String   @map("uploaded_by")
+  url        String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  dispute  Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploader User    @relation(fields: [uploadedBy], references: [id])
+
+  @@map("dispute_evidence")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  rentalId   String?  @map("rental_id")
+  userId     String?  @map("user_id")
+  action     String
+  fromStatus String?  @map("from_status")
+  toStatus   String?  @map("to_status")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  rental Rental? @relation(fields: [rentalId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
