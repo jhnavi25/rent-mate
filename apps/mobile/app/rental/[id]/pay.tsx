@@ -1,14 +1,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { api } from '../../../src/api/client';
+import { Button } from '../../../src/components/Button';
+import { colors, radius, spacing } from '../../../src/theme';
+
+const LINE_ITEMS = [
+  { label: 'Rental fee (3 days)', amount: '₹2,397' },
+  { label: 'Security deposit', amount: '₹12,000' },
+  { label: 'Platform fee (10%)', amount: '₹240' },
+];
 
 export default function PayScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -16,9 +17,16 @@ export default function PayScreen() {
   const router = useRouter();
 
   const checkout = async () => {
+    if (id.startsWith('demo-')) {
+      Alert.alert('Payment simulated', 'Rental fee + deposit captured (demo)', [
+        { text: 'View rental', onPress: () => router.replace(`/rental/${id}`) },
+      ]);
+      return;
+    }
+
     setLoading(true);
     try {
-      const result = await api<{ mock?: boolean; message?: string; status?: string }>(
+      const result = await api<{ mock?: boolean; message?: string }>(
         `/rentals/${id}/checkout`,
         {
           method: 'POST',
@@ -30,11 +38,9 @@ export default function PayScreen() {
           { text: 'OK', onPress: () => router.replace(`/rental/${id}`) },
         ]);
       } else {
-        Alert.alert(
-          'Razorpay',
-          'Complete payment in Razorpay checkout with the returned order IDs',
-          [{ text: 'OK', onPress: () => router.replace(`/rental/${id}`) }],
-        );
+        Alert.alert('Razorpay', 'Complete payment in Razorpay checkout', [
+          { text: 'OK', onPress: () => router.replace(`/rental/${id}`) },
+        ]);
       }
     } catch (e) {
       Alert.alert('Checkout failed', (e as Error).message);
@@ -45,31 +51,63 @@ export default function PayScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Checkout</Text>
-      <Text style={styles.subtitle}>
-        Pays rental fee + security deposit (two Razorpay orders when configured)
-      </Text>
-      <Pressable style={styles.button} onPress={checkout} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Pay with Razorpay</Text>
-        )}
-      </Pressable>
+      <View style={styles.header}>
+        <Text style={styles.emoji}>💳</Text>
+        <Text style={styles.title}>Secure checkout</Text>
+        <Text style={styles.subtitle}>
+          Two Razorpay orders — rental fee and refundable deposit
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        {LINE_ITEMS.map((item) => (
+          <View key={item.label} style={styles.row}>
+            <Text style={styles.rowLabel}>{item.label}</Text>
+            <Text style={styles.rowValue}>{item.amount}</Text>
+          </View>
+        ))}
+        <View style={[styles.row, styles.totalRow]}>
+          <Text style={styles.totalLabel}>Total due now</Text>
+          <Text style={styles.totalValue}>₹14,637</Text>
+        </View>
+      </View>
+
+      <View style={styles.trust}>
+        <Text style={styles.trustItem}>🔒 256-bit encrypted payment</Text>
+        <Text style={styles.trustItem}>↩️ Deposit refunded after inspection</Text>
+        <Text style={styles.trustItem}>📧 Receipt sent to your phone</Text>
+      </View>
+
+      <Button label="Pay with Razorpay" onPress={checkout} loading={loading} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, backgroundColor: '#16213e', justifyContent: 'center' },
-  title: { color: '#fff', fontSize: 24, fontWeight: '700' },
-  subtitle: { color: '#888', marginTop: 12, lineHeight: 22 },
-  button: {
-    backgroundColor: '#e94560',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 32,
+  container: { flex: 1, padding: spacing.xl, backgroundColor: colors.bg, justifyContent: 'center' },
+  header: { alignItems: 'center', marginBottom: spacing.xl },
+  emoji: { fontSize: 48 },
+  title: { color: colors.text, fontSize: 26, fontWeight: '800', marginTop: spacing.md },
+  subtitle: { color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, lineHeight: 20 },
+  card: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.lg,
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm },
+  rowLabel: { color: colors.textMuted, fontSize: 14 },
+  rowValue: { color: colors.text, fontWeight: '600' },
+  totalRow: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  totalLabel: { color: colors.text, fontWeight: '700', fontSize: 16 },
+  totalValue: { color: colors.primary, fontWeight: '800', fontSize: 20 },
+  trust: { gap: spacing.sm, marginBottom: spacing.xl },
+  trustItem: { color: colors.textMuted, fontSize: 13 },
 });

@@ -3,13 +3,16 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { api } from '../../../src/api/client';
+import { Badge } from '../../../src/components/Badge';
+import { Button } from '../../../src/components/Button';
+import { formatINR } from '../../../src/utils/format';
+import { colors, radius, spacing } from '../../../src/theme';
 
 interface Dispute {
   id: string;
@@ -23,9 +26,15 @@ export default function DisputeScreen() {
   const { id: rentalId } = useLocalSearchParams<{ id: string }>();
   const [dispute, setDispute] = useState<Dispute | null | undefined>(undefined);
   const [claimAmount, setClaimAmount] = useState('50000');
-  const [evidenceUrl, setEvidenceUrl] = useState('https://example.com/damage.jpg');
+  const [evidenceUrl, setEvidenceUrl] = useState(
+    'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400',
+  );
 
   const load = async () => {
+    if (rentalId.startsWith('demo-')) {
+      setDispute(null);
+      return;
+    }
     const d = await api<Dispute | null>(`/disputes/rentals/${rentalId}`);
     setDispute(d);
   };
@@ -35,6 +44,17 @@ export default function DisputeScreen() {
   }, [rentalId]);
 
   const fileClaim = async () => {
+    if (rentalId.startsWith('demo-')) {
+      setDispute({
+        id: 'demo-dispute',
+        status: 'under_review',
+        claimedAmountPaise: parseInt(claimAmount, 10),
+        evidence: [{ url: evidenceUrl }],
+      });
+      Alert.alert('Dispute filed', 'Platform ops will review within 48 hours (demo)');
+      return;
+    }
+
     try {
       await api(`/disputes/rentals/${rentalId}`, {
         method: 'POST',
@@ -53,7 +73,7 @@ export default function DisputeScreen() {
   if (dispute === undefined) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#e94560" />
+        <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }
@@ -61,7 +81,12 @@ export default function DisputeScreen() {
   if (!dispute) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>File damage claim (owner)</Text>
+        <Text style={styles.emoji}>⚖️</Text>
+        <Text style={styles.title}>File damage claim</Text>
+        <Text style={styles.subtitle}>
+          Owners can claim up to the deposit amount with photo evidence. Rent Mate ops reviews within 48h.
+        </Text>
+
         <Text style={styles.label}>Claim amount (paise)</Text>
         <TextInput
           style={styles.input}
@@ -69,55 +94,89 @@ export default function DisputeScreen() {
           onChangeText={setClaimAmount}
           keyboardType="number-pad"
         />
-        <Text style={styles.label}>Evidence URL</Text>
+        <Text style={styles.label}>Evidence photo URL</Text>
         <TextInput style={styles.input} value={evidenceUrl} onChangeText={setEvidenceUrl} />
-        <Pressable style={styles.button} onPress={fileClaim}>
-          <Text style={styles.buttonText}>File dispute</Text>
-        </Pressable>
+
+        <Button label="File dispute" onPress={fileClaim} variant="danger" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <Text style={styles.emoji}>📋</Text>
       <Text style={styles.title}>Dispute status</Text>
-      <Text style={styles.status}>{dispute.status}</Text>
-      <Text style={styles.meta}>
-        Claimed: ₹{(dispute.claimedAmountPaise / 100).toFixed(0)}
-      </Text>
+      <Badge
+        label={dispute.status.replace(/_/g, ' ')}
+        tone={dispute.status === 'resolved' ? 'success' : 'warning'}
+      />
+      <View style={styles.summary}>
+        <Text style={styles.summaryLabel}>Claimed amount</Text>
+        <Text style={styles.summaryValue}>{formatINR(dispute.claimedAmountPaise)}</Text>
+      </View>
       {dispute.resolution && (
-        <Text style={styles.meta}>Resolution: {dispute.resolution}</Text>
+        <View style={styles.resolution}>
+          <Text style={styles.resolutionTitle}>Resolution</Text>
+          <Text style={styles.resolutionText}>{dispute.resolution}</Text>
+        </View>
       )}
+      <Text style={styles.evidenceTitle}>Evidence submitted</Text>
       {dispute.evidence.map((e, i) => (
-        <Text key={i} style={styles.evidence}>
-          Evidence: {e.url}
-        </Text>
+        <View key={i} style={styles.evidenceRow}>
+          <Text style={styles.evidenceIcon}>🖼️</Text>
+          <Text style={styles.evidenceUrl} numberOfLines={2}>
+            {e.url}
+          </Text>
+        </View>
       ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, backgroundColor: '#16213e' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#16213e' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  status: { color: '#e94560', marginTop: 12, fontSize: 18 },
-  meta: { color: '#888', marginTop: 8 },
-  evidence: { color: '#666', marginTop: 8, fontSize: 12 },
-  label: { color: '#888', marginTop: 16 },
+  container: { flex: 1, padding: spacing.xl, backgroundColor: colors.bg },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
+  emoji: { fontSize: 40, marginTop: spacing.lg },
+  title: { color: colors.text, fontSize: 24, fontWeight: '800', marginTop: spacing.md },
+  subtitle: { color: colors.textMuted, marginTop: spacing.sm, lineHeight: 20, marginBottom: spacing.lg },
+  label: { color: colors.textMuted, marginTop: spacing.lg, fontWeight: '600' },
   input: {
-    backgroundColor: '#1a1a2e',
-    color: '#fff',
-    padding: 14,
-    borderRadius: 10,
-    marginTop: 8,
+    backgroundColor: colors.bgElevated,
+    color: colors.text,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  button: {
-    backgroundColor: '#e94560',
-    padding: 14,
-    borderRadius: 10,
+  summary: {
+    marginTop: spacing.xl,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  summaryLabel: { color: colors.textMuted, fontSize: 13 },
+  summaryValue: { color: colors.danger, fontSize: 24, fontWeight: '800', marginTop: 4 },
+  resolution: {
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.lg,
+  },
+  resolutionTitle: { color: colors.text, fontWeight: '700' },
+  resolutionText: { color: colors.textMuted, marginTop: spacing.xs },
+  evidenceTitle: { color: colors.text, fontWeight: '700', marginTop: spacing.xl },
+  evidenceRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 24,
+    gap: spacing.md,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
   },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  evidenceIcon: { fontSize: 20 },
+  evidenceUrl: { flex: 1, color: colors.textMuted, fontSize: 12 },
 });

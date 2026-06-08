@@ -1,48 +1,22 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { api } from '../../src/api/client';
-
-interface Rental {
-  id: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  rentalFeePaise: number;
-  listing: { title: string };
-}
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { DemoBanner } from '../../src/components/DemoBanner';
+import { RentalCard } from '../../src/components/RentalCard';
+import { SectionHeader } from '../../src/components/SectionHeader';
+import { useRentals } from '../../src/hooks/useRentals';
+import { colors, radius, spacing } from '../../src/theme';
 
 export default function RentalsScreen() {
-  const [rentals, setRentals] = useState<Rental[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { rentals, loading, demoMode, refresh } = useRentals();
   const router = useRouter();
 
-  const load = useCallback(async () => {
-    try {
-      const data = await api<Rental[]>('/rentals/mine');
-      setRentals(data);
-    } catch {
-      setRentals([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const active = rentals.filter((r) => !['completed', 'cancelled'].includes(r.status));
+  const past = rentals.filter((r) => ['completed', 'cancelled'].includes(r.status));
 
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#e94560" />
+        <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }
@@ -50,39 +24,74 @@ export default function RentalsScreen() {
   return (
     <FlatList
       style={styles.container}
-      data={rentals}
+      data={[...active, ...past]}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={rentals.length === 0 ? styles.centered : undefined}
-      ListEmptyComponent={<Text style={styles.empty}>No rentals yet</Text>}
-      onRefresh={load}
       refreshing={loading}
-      renderItem={({ item }) => (
-        <Pressable
-          style={styles.card}
-          onPress={() => router.push(`/rental/${item.id}`)}
-        >
-          <Text style={styles.title}>{item.listing.title}</Text>
-          <Text style={styles.status}>{item.status.replace(/_/g, ' ')}</Text>
-          <Text style={styles.meta}>
-            ₹{(item.rentalFeePaise / 100).toFixed(0)} · {item.startDate.slice(0, 10)}
-          </Text>
-        </Pressable>
-      )}
+      onRefresh={refresh}
+      showsVerticalScrollIndicator={false}
+      ListHeaderComponent={
+        <View>
+          <View style={styles.hero}>
+            <Text style={styles.heroTitle}>My rentals</Text>
+            <Text style={styles.heroSub}>Track payments, handoffs, returns & deposits</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{active.length}</Text>
+                <Text style={styles.statLabel}>Active</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{past.length}</Text>
+                <Text style={styles.statLabel}>Completed</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>72h</Text>
+                <Text style={styles.statLabel}>Inspection</Text>
+              </View>
+            </View>
+          </View>
+          {demoMode && <DemoBanner />}
+          {active.length > 0 && <SectionHeader title="In progress" />}
+        </View>
+      }
+      renderItem={({ item, index }) => {
+        const showPastHeader = active.length > 0 && index === active.length;
+        return (
+          <View>
+            {showPastHeader && <SectionHeader title="Past rentals" />}
+            <RentalCard item={item} onPress={() => router.push(`/rental/${item.id}`)} />
+          </View>
+        );
+      }}
+      ListEmptyComponent={
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}>📦</Text>
+          <Text style={styles.emptyTitle}>No rentals yet</Text>
+          <Text style={styles.emptyText}>Browse Discover to book your first item</Text>
+        </View>
+      }
     />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#16213e' },
-  centered: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { color: '#888' },
-  card: {
-    backgroundColor: '#1a1a2e',
-    margin: 12,
-    padding: 16,
-    borderRadius: 12,
+  container: { flex: 1, backgroundColor: colors.bg },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
+  hero: { padding: spacing.lg, paddingBottom: spacing.md },
+  heroTitle: { color: colors.text, fontSize: 28, fontWeight: '800' },
+  heroSub: { color: colors.textMuted, marginTop: spacing.xs, fontSize: 14 },
+  statsRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
+  stat: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  title: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  status: { color: '#e94560', marginTop: 4, textTransform: 'capitalize' },
-  meta: { color: '#888', marginTop: 4 },
+  statValue: { color: colors.primary, fontSize: 20, fontWeight: '800' },
+  statLabel: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  empty: { alignItems: 'center', padding: spacing.xxxl },
+  emptyEmoji: { fontSize: 40 },
+  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: spacing.md },
+  emptyText: { color: colors.textMuted, marginTop: spacing.xs, textAlign: 'center' },
 });

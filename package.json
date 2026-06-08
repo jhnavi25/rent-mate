@@ -9,6 +9,8 @@
     "api:dev": "npm run dev -w @rent-mate/api",
     "api:build": "npm run build -w @rent-mate/api",
     "mobile:start": "npm run start -w @rent-mate/mobile",
+    "web:dev": "npm run dev -w web",
+    "web:build": "npm run build -w web",
     "db:migrate": "npm run prisma:migrate -w @rent-mate/api",
     "db:generate": "npm run prisma:generate -w @rent-mate/api",
     "docker:up": "docker compose up -d",
