@@ -167,6 +167,14 @@ export class PaymentsService {
 
   async handleWebhook(rawBody: Buffer, signature: string) {
     const secret = this.config.get('RAZORPAY_WEBHOOK_SECRET');
+    const isProd = this.config.get('NODE_ENV') === 'production';
+
+    if (!secret && isProd) {
+      throw new BadRequestException(
+        'RAZORPAY_WEBHOOK_SECRET is not configured. Webhook rejected.',
+      );
+    }
+
     if (secret) {
       const expected = crypto
         .createHmac('sha256', secret)
@@ -176,6 +184,7 @@ export class PaymentsService {
         throw new BadRequestException('Invalid webhook signature');
       }
     }
+  
 
     const payload = JSON.parse(rawBody.toString());
     const eventId = payload.event ?? payload.id ?? JSON.stringify(payload).slice(0, 64);
