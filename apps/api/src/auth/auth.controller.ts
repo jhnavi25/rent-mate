@@ -1,4 +1,5 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { OtpRateLimitGuard } from '../common/guards/otp-rate-limit.guard';
 import { AuthService } from './auth.service';
 import { RequestOtpDto, VerifyOtpDto } from './dto/auth.dto';
 
@@ -7,6 +8,7 @@ export class AuthController {
   constructor(private auth: AuthService) {}
 
   @Post('otp/request')
+  @UseGuards(OtpRateLimitGuard)
   requestOtp(@Body() dto: RequestOtpDto) {
     return this.auth.requestOtp(dto.phone);
   }
