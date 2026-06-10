@@ -126,8 +126,8 @@ export class RentalsService {
     const rental = await this.prisma.rental.findUnique({
       where: { id },
       include: {
-        listing: { include: { owner: { select: { id: true, name: true, phone: true } } } },
-        renter: { select: { id: true, name: true, phone: true } },
+        listing: { include: { owner: { select: { id: true, name: true } } } },
+        renter: { select: { id: true, name: true } },
         payments: true,
         dispute: { include: { evidence: true } },
         rentalReturn: true,

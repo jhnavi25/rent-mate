@@ -22,7 +22,7 @@ export class ListingsService {
   async findById(id: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
-      include: { media: true, owner: { select: { id: true, name: true } } },
+      include: { media: true, owner: { select: { id: true, name: true } } }, // phone intentionally excluded — PII
     });
     if (!listing) throw new NotFoundException('Listing not found');
     return listing;
