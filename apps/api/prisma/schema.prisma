@@ -55,6 +55,7 @@ enum DisputeStatus {
   under_review
   resolved
 }
+
 enum NotificationType {
   rent_reminder
   payment_overdue
@@ -63,6 +64,9 @@ enum NotificationType {
 model User {
   id         String    @id @default(uuid())
   phone      String    @unique
+  email      String?   @unique
+  passwordHash String?
+
   name       String?
   role       UserRole  @default(renter)
   kycStatus  KycStatus @default(none) @map("kyc_status")
@@ -80,7 +84,8 @@ model User {
   disputeEvidence  DisputeEvidence[]
   reviewsGiven     Review[]          @relation("ReviewGiven")
   reviewsReceived  Review[]          @relation("ReviewReceived")
-  notifications Notification[]
+  notifications    Notification[]
+
   @@map("users")
 }
 

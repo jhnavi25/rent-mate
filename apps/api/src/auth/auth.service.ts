@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { VerifyOtpDto } from './dto/auth.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +27,10 @@ export class AuthService {
   }
 
   async verifyOtp(dto: VerifyOtpDto) {
+    try {
+    if (!dto.phone || !dto.code) {
+      throw new BadRequestException('Phone and code required');
+    }
     const otp = await this.prisma.otpCode.findFirst({
       where: {
         phone: dto.phone,
@@ -47,7 +52,7 @@ export class AuthService {
 
     let user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
     if (!user) {
-      user = await this.prisma.user.create({ data: { phone: dto.phone } });
+      user = await this.prisma.user.create({ data: { phone: dto.phone,  role: 'renter',}, });
     }
 
     const token = this.jwt.sign({
@@ -56,8 +61,17 @@ export class AuthService {
       role: user.role,
     });
 
-    return { accessToken: token, user };
+    return {
+      message: 'OTP verified',
+      accessToken: token,
+      user,
+    };
+
+  } catch (err) {
+    console.error('OTP VERIFY ERROR:', err);
+    throw err;
   }
+ }
 
   async devLogin(phone: string) {
     if (process.env.NODE_ENV === 'production') {
