@@ -55,6 +55,10 @@ enum DisputeStatus {
   under_review
   resolved
 }
+enum NotificationType {
+  rent_reminder
+  payment_overdue
+}
 
 model User {
   id         String    @id @default(uuid())
@@ -76,7 +80,7 @@ model User {
   disputeEvidence  DisputeEvidence[]
   reviewsGiven     Review[]          @relation("ReviewGiven")
   reviewsReceived  Review[]          @relation("ReviewReceived")
-
+  notifications Notification[]
   @@map("users")
 }
 
@@ -269,6 +273,21 @@ model AuditLog {
   user   User?   @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 model Review {
