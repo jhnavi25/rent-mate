@@ -1,5 +1,10 @@
 import Lottie from 'lottie-react'
-import { type ReactNode, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Routes, Route, Link } from 'react-router-dom'
+import AuthPage from './pages/AuthPage'
+import ListingsPage from './pages/ListingsPage'
+import NewListingPage from './pages/NewListingPage'
+import type { ReactNode } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 
@@ -50,17 +55,6 @@ const FLOATING_TAGS = [
   { label: '📍 2.3 km', bottom: '8%', right: '-2%', delay: '2s' },
 ]
 
-function NavLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a
-      href={href}
-      className="relative text-sm text-slate-400 transition-colors hover:text-white after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-0 after:bg-violet-400 after:transition-all hover:after:w-full"
-    >
-      {children}
-    </a>
-  )
-}
-
 function Button({
   children,
   variant = 'primary',
@@ -80,8 +74,23 @@ function Button({
     ghost: 'text-slate-300 hover:text-white',
   }[variant]
 
-  if (href) return <a href={href} className={`${base} ${styles}`}>{children}</a>
-  return <button className={`${base} ${styles}`}>{children}</button>
+if (href?.startsWith('/')) {
+  return (
+    <Link to={href} className={`${base} ${styles}`}>
+      {children}
+    </Link>
+  )
+}
+
+if (href?.startsWith('#')) {
+  return (
+    <a href={href} className={`${base} ${styles}`}>
+      {children}
+    </a>
+  )
+}
+
+return <button className={`${base} ${styles}`}>{children}</button>
 }
 
 function FloatingTag({
@@ -136,11 +145,11 @@ function LottieHero() {
   }, [])
 
   return (
-    <div className="relative flex items-center justify-center animate-fadeInUp">
+    <div className="relative flex items-center justify-center animate-fadeInUp overflow-visible">
       {FLOATING_TAGS.map((tag) => (
         <FloatingTag key={tag.label} {...tag} />
       ))}
-      <div className="gradient-border relative overflow-hidden rounded-3xl bg-slate-900/60 shadow-2xl shadow-violet-500/10 backdrop-blur-sm p-6">
+      <div className="gradient-border relative overflow-visible rounded-3xl bg-slate-900/60 shadow-2xl shadow-violet-500/10 backdrop-blur-sm p-6">
         {animData && !prefersReduced ? (
           <Lottie
             animationData={animData}
@@ -165,7 +174,13 @@ function LottieHero() {
   )
 }
 
-export default function App() {
+function LandingPage() {
+  const scrollToSection = (id: string) => {
+  const el = document.getElementById(id)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' })
+  }
+}
   return (
     <div className="min-h-screen bg-slate-950">
       {/* Background */}
@@ -178,7 +193,7 @@ export default function App() {
       {/* Navbar */}
       <header className="glass sticky top-0 z-50 border-b border-white/[0.06]">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-          <a href="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3">
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-violet-600 text-sm font-black text-white shadow-lg shadow-violet-500/40">
               RM
             </div>
@@ -186,17 +201,31 @@ export default function App() {
               <div className="text-sm font-bold text-white">Rent Mate</div>
               <div className="text-[10px] text-slate-500">Hyperlocal rentals</div>
             </div>
-          </a>
+          </Link>
 
           <nav className="hidden items-center gap-7 md:flex">
-            <NavLink href="#how">How it works</NavLink>
-            <NavLink href="#trust">Trust & Safety</NavLink>
-            <NavLink href="#download">Mobile app</NavLink>
+            <button onClick={() => scrollToSection('how')}>
+               How it works
+            </button>
+            <button onClick={() => scrollToSection('trust')}>
+               Trust & Safety
+            </button>
+            <button onClick={() => scrollToSection('download')}>
+              Mobile app
+            </button>
           </nav>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" href="#how" size="sm">Sign in</Button>
-            <Button href="#list" size="sm">List an item ↗</Button>
+            <Link to="/auth">
+              <Button variant="ghost" size="md">
+                  Sign in
+              </Button>
+            </Link>
+            <Link to="/listings/new">
+              <Button size="sm">
+                List an item ↗
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
@@ -204,7 +233,7 @@ export default function App() {
       <main className="mx-auto w-full max-w-6xl px-6 pb-24">
 
         {/* Hero */}
-        <section className="relative grid items-center gap-12 py-16 md:grid-cols-2 md:py-24">
+        <section className="relative flex flex-col gap-12 py-16 md:py-24">
           {/* Left */}
           <div className="animate-fadeInUp">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-xs font-semibold text-emerald-300">
@@ -228,12 +257,20 @@ export default function App() {
             </p>
 
             <div className="animate-fadeInUp-delayed-2 mt-8 flex flex-wrap items-center gap-3">
-              <Button href="#discover" size="lg">Browse listings →</Button>
+              <Link to="/listings">
+                <Button size="lg">
+                  Browse listings →
+                </Button>
+              </Link>
               <Button variant="secondary" href="#how" size="lg">How it works</Button>
             </div>
 
             <div className="mt-10 flex items-center gap-6 text-sm text-slate-400">
-              {[['500+', 'Listings'], ['4.9★', 'Avg rating'], ['72h', 'Dispute SLA']].map(([val, lbl]) => (
+              {([
+                  ['500+', 'Listings'],
+                  ['4.9★', 'Avg rating'],
+                  ['72h', 'Dispute SLA'],
+                ] as const).map(([val, lbl]) => (
                 <div key={lbl}>
                   <span className="block text-xl font-black text-white">{val}</span>
                   <span className="text-xs">{lbl}</span>
@@ -243,6 +280,7 @@ export default function App() {
           </div>
 
           {/* Right — Lottie Hero Animation */}
+          <div className="animate-fadeInUp"></div>
           <LottieHero />
         </section>
 
@@ -337,12 +375,16 @@ export default function App() {
               </div>
               <div className="flex flex-shrink-0 flex-wrap gap-3">
                 <Button variant="secondary" href="#pricing">View pricing</Button>
-                <Button href="#list" size="lg">Start listing ↗</Button>
-              </div>
+              <Link to="/listings/new">
+                <Button size="lg">
+                  Start listing ↗
+                </Button>
+              </Link>
             </div>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
+    </main>
 
       {/* Footer */}
       <footer className="border-t border-white/[0.04]">
@@ -367,3 +409,17 @@ export default function App() {
     </div>
   )
 }
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/listings" element={<ListingsPage />} />
+      <Route path="/listings/new" element={<NewListingPage />} />
+    </Routes>
+  )
+}
+
+
+
