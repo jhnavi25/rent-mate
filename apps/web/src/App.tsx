@@ -175,6 +175,8 @@ function LottieHero() {
 }
 
 function LandingPage() {
+  const isLoggedIn = !!localStorage.getItem("token");
+  const [showMenu, setShowMenu] = useState(false);
   const scrollToSection = (id: string) => {
   const el = document.getElementById(id)
   if (el) {
@@ -215,12 +217,37 @@ function LandingPage() {
             </button>
           </nav>
 
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {isLoggedIn ? (
+    <div className="relative">
+      <button
+        onClick={() => setShowMenu(!showMenu)}
+        className="text-green-400 text-sm font-medium"
+      >
+        Logged In ✓
+      </button>
+
+      {showMenu && (
+        <div className="absolute right-0 mt-2 w-32 rounded-lg bg-slate-900 border border-slate-700 shadow-lg">
+          <button
+            onClick={() => {
+              localStorage.removeItem("token");
+              window.location.reload();
+            }}
+            className="w-full text-left px-4 py-2 text-red-400 hover:bg-slate-800"
+          >
+            Logout
+          </button>
+        </div>
+      )}
+    </div>
+  ) : (
             <Link to="/auth">
               <Button variant="ghost" size="md">
                   Sign in
               </Button>
             </Link>
+            )}
             <Link to="/listings/new">
               <Button size="sm">
                 List an item ↗
